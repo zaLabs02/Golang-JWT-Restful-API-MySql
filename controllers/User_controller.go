@@ -2,6 +2,7 @@ package controllers
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"login-register/config"
 	"login-register/config/auth"
@@ -9,7 +10,6 @@ import (
 	"login-register/responses"
 	"login-register/responses/formaterror"
 	"net/http"
-	"strconv"
 )
 
 func GetUsers(w http.ResponseWriter, r *http.Request) {
@@ -78,7 +78,7 @@ func Login(w http.ResponseWriter, r *http.Request) {
 	responses.JSON(w, http.StatusOK, token)
 }
 
-func Proses_login(email string, password string) (string, error) {
+func Proses_login(email string, password string) (map[string]string, error) {
 
 	var err error
 
@@ -87,18 +87,46 @@ func Proses_login(email string, password string) (string, error) {
 	err = config.Database.Debug().Model(models.User{}).Where("email = ?", email).Take(&user).Error
 	if err != nil {
 		// log.Print(err)
-		return "", err
+		return nil, err
 	}
 	match, err := models.VerifikasiPassword(user.Password, password)
 	if match == false {
-		return strconv.FormatBool(match), err
+		return nil, err
 	}
 	return auth.BuatToken(user.ID)
-	// log.Print(match, err)
-	// return strconv.FormatBool(match), err
 }
 
 func Home(w http.ResponseWriter, r *http.Request) {
 	tester := "holaaaaa"
 	responses.JSON(w, http.StatusOK, tester)
+}
+
+func Refresh(w http.ResponseWriter, r *http.Request) {
+	type token_refresh struct {
+		Refresh_token string `json:"refresh_token"`
+	}
+	var token_old token_refresh
+	var new_token map[string]string
+	err := json.NewDecoder(r.Body).Decode(&token_old)
+	if err != nil {
+		panic(err.Error())
+	}
+	if auth.TokenCek(token_old.Refresh_token) != nil {
+		responses.JSON(w, http.StatusInternalServerError, "Expired")
+		return
+	} else {
+		id, err := auth.ExtractTokenID(r)
+		if err != nil {
+			responses.ERROR(w, http.StatusUnauthorized, errors.New("Unauthorized"))
+			return
+		}
+		new_token, err = auth.BuatToken(id)
+		if err != nil {
+			formattedError := formaterror.FormatError(err.Error())
+			responses.ERROR(w, http.StatusUnprocessableEntity, formattedError)
+			return
+		}
+		responses.JSON(w, http.StatusOK, new_token)
+	}
+
 }

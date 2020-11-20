@@ -13,13 +13,32 @@ import (
 	jwt "github.com/dgrijalva/jwt-go"
 )
 
-func BuatToken(user_id uint32) (string, error) {
+func BuatToken(user_id uint32) (map[string]string, error) {
 	claims := jwt.MapClaims{}
 	claims["authorized"] = true
 	claims["user_id"] = user_id
 	claims["exp"] = time.Now().Add(time.Hour * 1).Unix() //Token expires after 1 hour
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
-	return token.SignedString([]byte(os.Getenv("API_SECRET")))
+	t, err := token.SignedString([]byte(os.Getenv("API_SECRET")))
+	if err != nil {
+		return nil, err
+	}
+
+	refreshToken := jwt.New(jwt.SigningMethodHS256)
+	rtClaims := refreshToken.Claims.(jwt.MapClaims)
+	rtClaims["authorized"] = true
+	rtClaims["user_id"] = user_id
+	rtClaims["exp"] = time.Now().Add(time.Hour * 24).Unix()
+
+	rt, err := refreshToken.SignedString([]byte(os.Getenv("API_SECRET")))
+	if err != nil {
+		return nil, err
+	}
+
+	return map[string]string{
+		"access_token":  t,
+		"refresh_token": rt,
+	}, nil
 
 }
 
@@ -85,4 +104,20 @@ func Pretty(data interface{}) {
 	}
 
 	fmt.Println(string(b))
+}
+
+func TokenCek(tokenString string) error {
+	token, err := jwt.Parse(tokenString, func(token *jwt.Token) (interface{}, error) {
+		if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
+			return nil, fmt.Errorf("Unexpected signing method: %v", token.Header["alg"])
+		}
+		return []byte(os.Getenv("API_SECRET")), nil
+	})
+	if err != nil {
+		return err
+	}
+	if claims, ok := token.Claims.(jwt.MapClaims); ok && token.Valid {
+		Pretty(claims)
+	}
+	return nil
 }
