@@ -29,13 +29,23 @@ func hash(pw string) string {
 	return password
 }
 
-func (u *User) Persiapan() {
+func VerifikasiPassword(hashedPassword, password string) (bool, error) {
+	match, err := argon2id.ComparePasswordAndHash(password, hashedPassword)
+	if err != nil {
+		log.Fatal(err)
+	}
+	return match, err
+}
+
+func (u *User) Persiapan(action string) {
 	u.ID = 0
 	u.Username = html.EscapeString(strings.TrimSpace(u.Username))
 	u.Email = html.EscapeString(strings.TrimSpace(u.Email))
-	u.Password = hash(u.Password)
 	u.CreatedAt = time.Now()
 	u.UpdatedAt = time.Now()
+	if strings.ToLower(action) == "seed" || strings.ToLower(action) == "tambah" {
+		u.Password = hash(u.Password)
+	}
 }
 
 func (u *User) Validasi(action string) error {
