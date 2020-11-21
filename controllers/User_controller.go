@@ -122,6 +122,36 @@ func TambahUser(w http.ResponseWriter, r *http.Request) {
 	responses.JSON(w, http.StatusCreated, userCreated)
 }
 
+func HapusData(w http.ResponseWriter, r *http.Request) {
+	var user models.User
+	params := mux.Vars(r)
+
+	// konversi id dari tring ke int
+	id, errr := strconv.Atoi(params["id"])
+
+	if errr != nil {
+		responses.ERROR(w, http.StatusBadRequest, errr)
+		return
+	}
+	tokenID, err := auth.ExtractTokenID(r)
+	if err != nil {
+		responses.ERROR(w, http.StatusUnauthorized, errors.New("Unauthorized"))
+		return
+	}
+	if tokenID != 0 && tokenID != uint32(id) {
+		responses.ERROR(w, http.StatusUnauthorized, errors.New(http.StatusText(http.StatusUnauthorized)))
+		return
+	}
+	_, err = user.DeleteAUser(config.Database, uint32(id))
+	if err != nil {
+		responses.ERROR(w, http.StatusInternalServerError, err)
+		return
+	}
+	w.Header().Set("Entity", fmt.Sprintf("%d", id))
+	responses.JSON(w, http.StatusNoContent, "Data sukses terhapus")
+
+}
+
 func Login(w http.ResponseWriter, r *http.Request) {
 	var user models.User
 
