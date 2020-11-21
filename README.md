@@ -29,9 +29,12 @@ Contoh inputan tiap url endpoint APInya
     - Response
         ```
         {
-            "username":"afrizalsblog",
+            "id": 6,
+            "username": "afrizalsblog",
             "email": "dsi@gmail.com",
-            "password": "afrizal"
+            "password": "$argon2id$v=19$m=65536,t=1,p=2$YCrzu5xuBoOSVWLV4zgTgQ$e+vOvUta80ye440ZOJKsjUvLDN6LCYKHRYZZQ0aMOWw",
+            "created_at": "2020-11-21T14:18:43.232855253+07:00",
+            "updated_at": "2020-11-21T14:18:43.232855492+07:00"
         }
         ```
 * url ```/auth/login``` Method POST untuk login dan mendapatkan token JWT
