@@ -43,7 +43,7 @@ func (u *User) Persiapan(action string) {
 	u.Email = html.EscapeString(strings.TrimSpace(u.Email))
 	u.CreatedAt = time.Now()
 	u.UpdatedAt = time.Now()
-	if strings.ToLower(action) == "seed" || strings.ToLower(action) == "tambah" {
+	if strings.ToLower(action) == "seed" || strings.ToLower(action) == "tambah" || strings.ToLower(action) == "update" {
 		u.Password = hash(u.Password)
 	}
 }
@@ -108,6 +108,41 @@ func (u *User) TmbhUser(db *gorm.DB) (*User, error) {
 
 	var err error
 	err = db.Debug().Create(&u).Error
+	if err != nil {
+		return &User{}, err
+	}
+	return u, nil
+}
+
+func (u *User) LihatUser(db *gorm.DB, uid uint32) (*User, error) {
+	var err error
+	err = db.Debug().Model(User{}).Where("id = ?", uid).Take(&u).Error
+	if err != nil {
+		return &User{}, err
+	}
+	if gorm.IsRecordNotFoundError(err) {
+		return &User{}, errors.New("User Not Found")
+	}
+	return u, err
+}
+
+func (u *User) UpdateDataUser(db *gorm.DB, uid uint32) (*User, error) {
+	log.Print(u.Password)
+	var err error
+	db = db.Debug().Model(&User{}).Where("id = ?", uid).Take(&User{}).UpdateColumns(
+		map[string]interface{}{
+			"password":   u.Password,
+			"username":   u.Username,
+			"email":      u.Email,
+			"updated_at": time.Now(),
+		},
+	)
+
+	if db.Error != nil {
+		return &User{}, db.Error
+	}
+	// tampilkan hasil update data
+	err = db.Debug().Model(&User{}).Where("id = ?", uid).Take(&u).Error
 	if err != nil {
 		return &User{}, err
 	}

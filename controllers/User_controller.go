@@ -4,15 +4,19 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"log"
 	"login-register/config"
 	"login-register/config/auth"
 	"login-register/models"
 	"login-register/responses"
 	"login-register/responses/formaterror"
 	"net/http"
+	"strconv"
+
+	"github.com/gorilla/mux"
 )
 
-func GetUsers(w http.ResponseWriter, r *http.Request) {
+func GetSemuaUsers(w http.ResponseWriter, r *http.Request) {
 
 	user := models.User{}
 	users, err := user.ListSemuaUsers(config.Database)
@@ -21,6 +25,72 @@ func GetUsers(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	responses.JSON(w, http.StatusOK, users)
+}
+
+func GetUserById(w http.ResponseWriter, r *http.Request) {
+	params := mux.Vars(r)
+
+	// konversi id dari tring ke int
+	id, err := strconv.Atoi(params["id"])
+
+	if err != nil {
+		log.Fatalf("Tidak bisa mengubah dari string ke int.  %v", err)
+	}
+	// log.Print(id)
+
+	user := models.User{}
+	userGotten, err := user.LihatUser(config.Database, uint32(id))
+	if err != nil {
+		responses.ERROR(w, http.StatusBadRequest, err)
+		return
+	}
+	responses.JSON(w, http.StatusOK, userGotten)
+}
+
+func UpdateUser(w http.ResponseWriter, r *http.Request) {
+	params := mux.Vars(r)
+
+	// konversi id dari tring ke int
+	id, errr := strconv.Atoi(params["id"])
+
+	if errr != nil {
+		responses.ERROR(w, http.StatusBadRequest, errr)
+		return
+	}
+	// log.Print(id)
+
+	var user models.User
+
+	err := json.NewDecoder(r.Body).Decode(&user)
+
+	if err != nil {
+		responses.ERROR(w, http.StatusUnprocessableEntity, err)
+	}
+
+	tokenID, err := auth.ExtractTokenID(r)
+	if err != nil {
+		responses.ERROR(w, http.StatusUnauthorized, errors.New("Unauthorized"))
+		return
+	}
+	if tokenID != uint32(id) {
+		responses.ERROR(w, http.StatusUnauthorized, errors.New(http.StatusText(http.StatusUnauthorized)))
+		return
+	}
+	user.Persiapan("update")
+	err = user.Validasi("update")
+
+	if err != nil {
+		responses.ERROR(w, http.StatusUnprocessableEntity, err)
+		return
+	}
+
+	updatedUser, err := user.UpdateDataUser(config.Database, uint32(id))
+	if err != nil {
+		formattedError := formaterror.FormatError(err.Error())
+		responses.ERROR(w, http.StatusInternalServerError, formattedError)
+		return
+	}
+	responses.JSON(w, http.StatusOK, updatedUser)
 }
 
 func TambahUser(w http.ResponseWriter, r *http.Request) {
